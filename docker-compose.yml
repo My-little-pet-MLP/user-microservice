@@ -1,0 +1,44 @@
+services:
+  postgresuserdb:
+    container_name: user-db
+    image: postgres
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d profile-microservice-db"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+    environment:
+      - POSTGRES_USER=adminuser
+      - POSTGRES_PASSWORD=adminpassword
+      - POSTGRES_DB=user-db
+    networks:
+      - user-microservice
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  user-microservice:
+    working_dir: /app
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DBHOST=user-db
+      - DBPORT=5432
+      - USER=adminuser
+      - PASSWORD=adminpassword
+      - DBNAME=user-db
+      - KAFKAADDRESS=kafka:9092
+    networks:
+      - user-microservice
+      - my-little-pet-kafka
+    depends_on:
+      postgresuserdb:
+        condition: service_healthy
+networks:
+  user-microservice:
+    name: user-microservice
+  my-little-pet-kafka:
+    external: true
